@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LMArena Bridge UI</title>
+  <style>
+    /* Provide a visible top spacer (dark grey) and push content down to avoid Telegram Mini App close button */
+    :root { --top-spacer-height: calc(env(safe-area-inset-top, 20px) + (56px * 1.75)); }
+    body { padding-top: var(--top-spacer-height); margin:0; }
+    /* fixed spacer visually matches header, darker and larger; won't intercept clicks (pointer-events:none) */
+    #top-spacer { position: fixed; top: 0; left: 0; right: 0; height: var(--top-spacer-height); z-index: 99999; pointer-events: none; background: linear-gradient(180deg, rgba(0,0,0,0.95), rgba(20,20,20,0.96)); box-shadow: 0 6px 18px rgba(0,0,0,0.6); }
+    #root { min-height: 100vh; box-sizing: border-box; /* ensure content visually starts below the top-spacer */ }
+  </style>
+</head>
+<body>
+  <div id="top-spacer" aria-hidden="true"></div>
+  <div id="root"></div>
+  <!-- React + ReactDOM (UMD) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <script>
+    // Load App.js only after React and Telegram SDK are available to avoid
+    // top-level evaluation errors when React isn't defined yet.
+    function loadAppBundle() {
+      const s = document.createElement('script');
+      s.src = '/App.js';
+      s.onload = function() {
+        try {
+          if (typeof App === 'function') {
+            const rootEl = document.getElementById('root');
+            if (window.ReactDOM && typeof window.ReactDOM.createRoot === 'function') {
+              window.ReactDOM.createRoot(rootEl).render(React.createElement(App));
+            } else if (window.ReactDOM && typeof window.ReactDOM.render === 'function') {
+              window.ReactDOM.render(React.createElement(App), rootEl);
+            } else {
+              document.getElementById('root').innerText = 'ReactDOM not available; cannot render App.'
+            }
+          } else {
+            document.getElementById('root').innerText = 'App bundle loaded but App() not exposed.'
+          }
+        } catch (e) {
+          document.getElementById('root').innerText = 'Client error: ' + (e && e.message ? e.message : String(e))
+          console.error('App init error', e)
+        }
+      };
+      s.onerror = function() {
+        document.getElementById('root').innerText = 'Failed to load App bundle.'
+      };
+      document.head.appendChild(s);
+    }
+
+    function whenReady() {
+      if (window.React && window.ReactDOM) return loadAppBundle();
+      window.addEventListener('load', loadAppBundle);
+      // as a fallback, poll for React availability for 5s
+      let tries = 0;
+      const id = setInterval(() => {
+        tries++;
+        if (window.React && window.ReactDOM) {
+          clearInterval(id);
+          loadAppBundle();
+        } else if (tries > 50) {
+          clearInterval(id);
+          document.getElementById('root').innerText = 'React not available; cannot start app.'
+        }
+      }, 100);
+    }
+    whenReady();
+  </script>
+
+  <script>
+    // Client-side diagnostics: capture runtime errors and unhandled rejections
+    function sendClientError(payload) {
+      try {
+        fetch('/client-error', { method: 'POST', credentials: 'include', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }).catch(()=>{});
+      } catch(e){}
+    }
+    window.addEventListener('error', function(ev) {
+      sendClientError({ type: 'error', message: ev.message, filename: ev.filename, lineno: ev.lineno, colno: ev.colno, stack: ev.error && ev.error.stack });
+    });
+    window.addEventListener('unhandledrejection', function(ev) {
+      sendClientError({ type: 'unhandledrejection', reason: String(ev.reason) });
+    });
+
+    // If App not exposed within 3s of load, report diagnostic
+    setTimeout(function(){
+      if (typeof App !== 'function') {
+        sendClientError({ type: 'missing_app', message: 'App not defined', userAgent: navigator.userAgent });
+      }
+    }, 3000);
+  </script>
+</body>
+</html>

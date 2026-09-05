@@ -1,0 +1,24 @@
+graphify-out/cache/
+m6Yg.zip
+*.pyc
+__pycache__/
+telegram_credentials.json
+WEB/node_modules/
+
+# Secrets — every credential lives in .env now (see .env.example)
+.env
+WEB/.env
+*.env
+!.env.example
+
+# Runtime state written by the bridge (contains session/usage data, not secrets)
+WEB/data/
+data/
+config.json
+models.json
+Storage/logs/
+Storage/sessions/
+Storage/dumps/
+
+# Local venv
+venv/
